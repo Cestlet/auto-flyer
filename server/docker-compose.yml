@@ -1,0 +1,23 @@
+# 自动传单派发（多用户版）一键部署
+#
+# 多用户版不再预置静态 napcat 容器：每个用户在 Web 管理台「用户管理」里点
+# 「绑定」，由 webapp 通过 container_mgr 动态 docker run 创建独立的
+# napcat-<用户名> 容器（host 网络，反向 WS 连独立端口，互不干扰）。
+# 因此 flyer-server 需挂载 docker.sock 并预装 docker CLI（见 Dockerfile）。
+
+services:
+  flyer-server:
+    image: flyer-image
+    container_name: flyer-server
+    restart: always
+    working_dir: /app
+    environment:
+      # 宿主机上本项目目录的绝对路径（docker run -v 源由宿主机 daemon 解析，
+      # 容器内无法感知宿主路径，必须显式传入）
+      - HOST_SERVER_DIR=/root/flyer/server
+    volumes:
+      - .:/app                                # 代码/配置/图片/日志/状态持久化在宿主机
+      - /var/run/docker.sock:/var/run/docker.sock   # container_mgr 动态创建 NapCat 容器
+    # 双进程：server.py（核心）+ webapp.py（Web 管理台）
+    command: sh -c "python server.py & python webapp.py & wait"
+    network_mode: host

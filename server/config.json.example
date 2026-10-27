@@ -1,0 +1,29 @@
+{
+  "web": {
+    "host": "0.0.0.0",
+    "port": 8081,
+    "token_ttl_hours": 24
+  },
+  "logging": {
+    "log_dir": "logs",
+    "console_level": "INFO",
+    "file_level": "DEBUG"
+  },
+  "smtp": {
+    "host": "smtp.qq.com",
+    "port": 465,
+    "ssl": true,
+    "user": "你的发信邮箱@qq.com",
+    "password": "SMTP 授权码",
+    "from": "自动传单派发 <你的发信邮箱@qq.com>"
+  },
+  "docker": {
+    "napcat_image": "mlikiowa/napcat-docker:latest",
+    "napcat_uid": 1000,
+    "napcat_gid": 1000,
+    "ws_base_port": 8082,
+    "webui_base_port": 6098,
+    "webui_actual_port": 6099,
+    "server_public_addr": "服务器公网 IP"
+  }
+}

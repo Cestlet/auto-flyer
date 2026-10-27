@@ -1,0 +1,15 @@
+{
+  "admin": {
+    "password": "pbkdf2:sha256:600000$请替换$请替换",
+    "role": "admin",
+    "created_at": 0,
+    "idx": 0,
+    "ws_port": 8082,
+    "webui_port": 6098,
+    "ws_access_token": "请替换为随机串",
+    "webui_token": "请替换为随机串",
+    "qq_number": null,
+    "bound": false,
+    "container": "napcat-admin"
+  }
+}

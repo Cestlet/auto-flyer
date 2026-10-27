@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自动传单派发 · 管理台</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 登录视图 -->
+<div id="login-view" class="login-wrap hidden">
+  <div class="login-card">
+    <h1>自动传单派发 · 管理台</h1>
+    <p class="login-sub">请输入邮箱与密码登录</p>
+    <input id="login-username" type="text" placeholder="邮箱" autocomplete="username">
+    <input id="login-password" type="password" placeholder="密码" autocomplete="current-password">
+    <button id="login-btn" class="btn primary">登 录</button>
+    <div class="login-extra"><a href="javascript:void(0)" id="register-link">没有账号？注册</a></div>
+    <div id="login-error" class="error-text"></div>
+  </div>
+</div>
+
+<!-- 主视图 -->
+<div id="main-view" class="hidden">
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="title">自动传单派发 · 管理台</span>
+      <span id="user-info" class="badge"></span>
+      <select id="user-switcher" class="inline-select hidden" title="切换查看的用户"></select>
+      <span id="badge-server" class="badge">核心服务…</span>
+      <span id="badge-napcat" class="badge">NapCat…</span>
+      <span id="badge-qq" class="badge">QQ 状态…</span>
+    </div>
+    <button id="logout-btn" class="btn ghost">登出</button>
+  </header>
+
+  <div id="server-down-banner" class="banner hidden">⚠️ 核心服务未运行（服务器程序未启动或已停止）</div>
+
+  <!-- 未绑定引导页（登录后先绑定 QQ 才能管理） -->
+  <div id="bind-guide" class="hidden">
+    <div class="card guide-card">
+      <h2>🔗 绑定你的 QQ 账号</h2>
+      <p class="guide-desc">绑定后即可开始管理群与发送传单。请用<b>你自己的 QQ 号</b>（须已在目标群）扫码登录。每个账号独立容器，互不影响。</p>
+      <div id="bind-guide-body">
+        <button id="bind-start-btn" class="btn primary">开始绑定</button>
+      </div>
+      <div id="bind-guide-qr" class="bind-qr-box hidden">
+        <img id="bind-guide-qr-img" alt="登录二维码">
+        <p class="hint" style="margin-left:0">用手机 QQ 扫码登录（每 30 秒自动刷新，可点按钮立即换新码）</p>
+        <p><button id="bind-guide-qr-refresh" class="btn small ghost">🔄 刷新二维码</button></p>
+        <p id="bind-guide-qr-tip" class="hint" style="margin-left:0"></p>
+      </div>
+      <div id="bind-guide-url" class="bind-url-box hidden">
+        <p class="hint" style="margin-left:0">备用：如扫码页面打不开，可尝试在浏览器打开 NapCat WebUI（多容器时可能端口冲突）：</p>
+        <a id="bind-guide-link" href="#" target="_blank" rel="noopener"></a>
+      </div>
+      <p id="bind-guide-status" class="bind-status"></p>
+      <div id="bind-guide-skip" class="hidden" style="margin-top:14px">
+        <button id="bind-skip-btn" class="btn ghost">暂时跳过，进入管理台</button>
+      </div>
+      <div id="bind-guide-error" class="error-text"></div>
+    </div>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="status">状态监控</button>
+    <button class="tab" data-tab="groups">群管理</button>
+    <button class="tab" data-tab="content">内容与图片</button>
+    <button class="tab" data-tab="qzone">空间监控</button>
+    <button class="tab" data-tab="history">发送记录</button>
+    <button class="tab hidden" data-tab="users">用户管理</button>
+    <button class="tab" data-tab="logs">日志</button>
+  </nav>
+
+  <!-- Tab 1: 状态监控 -->
+  <section id="tab-status" class="tab-panel active">
+    <div class="card">
+      <h2>群发送状态 <span class="hint">每 3 秒自动刷新</span>
+        <button id="rescan-btn" class="btn small ghost hidden" title="NapCat 离线时可重新扫码登录 QQ">重新扫码</button>
+        <button id="qq-logout-btn" class="btn small ghost hidden" title="登出 QQ 并禁用自动登录" style="border-color:#e04;color:#e04">QQ 登出</button>
+        <button id="engine-toggle-btn" class="btn small ghost hidden" title="关闭/启动引擎">关闭引擎</button>
+      </h2>
+      <table class="table" id="status-table">
+        <thead>
+          <tr><th>群号</th><th>群名</th><th>消息计数</th><th>上次发送</th><th>状态</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Tab 2: 群管理 -->
+  <section id="tab-groups" class="tab-panel">
+    <div class="card">
+      <h2>全局默认设置</h2>
+      <div class="form-row">
+        <label>消息阈值（条）
+          <input id="g-threshold" type="number" min="1" placeholder="如 30">
+        </label>
+        <label>发送间隔（分钟）
+          <input id="g-interval" type="number" min="1" placeholder="如 30">
+        </label>
+        <button id="save-global-btn" class="btn primary">保存全局</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>群分类管理 <span class="hint">创建分类后可将群归入分类，统一开关/设置</span>
+        <button id="add-category-btn" class="btn small">+ 新增分类</button>
+      </h2>
+      <div id="category-list" class="category-list"></div>
+    </div>
+    <div class="card">
+      <h2>群列表 <button id="add-group-btn" class="btn small">+ 新增群</button></h2>
+      <table class="table" id="groups-table">
+        <thead>
+          <tr><th>群号</th><th>群名</th><th>分类</th><th>阈值</th><th>间隔</th><th>模板</th><th>图片</th><th>发送</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>自动检测到的群 <span class="hint">NapCat 收到消息的群自动出现在这里，群名自动检测，一键加入发送</span></h2>
+      <table class="table" id="detected-table">
+        <thead>
+          <tr><th>群号</th><th>群名</th><th>首次发现</th><th>最近活跃</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Tab 3: 内容与图片 -->
+  <section id="tab-content" class="tab-panel">
+    <div class="card">
+      <h2>发送文字模板 <span class="hint">\n 表示换行；空则只发图片</span></h2>
+      <textarea id="template-input" rows="4" placeholder="例如：接8.23场照&#10;欢迎咨询！"></textarea>
+      <button id="save-template-btn" class="btn primary">保存模板</button>
+    </div>
+    <div class="card">
+      <h2>默认图片 <span class="hint">发送时从中选择</span></h2>
+      <div id="default-image-options" class="radio-group"></div>
+    </div>
+    <div class="card">
+      <h2>图片库 <span class="hint">上传后即时生效（NapCat 直接读取服务器图片目录）</span></h2>
+      <div id="image-grid" class="image-grid"></div>
+      <div class="upload-row">
+        <input id="image-file-input" type="file" accept="image/*" multiple>
+        <button id="upload-btn" class="btn primary">上传图片</button>
+        <span id="upload-status" class="hint"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tab 4: 空间监控 -->
+  <section id="tab-qzone" class="tab-panel">
+    <div class="section-divider"><span>📊 状态</span></div>
+    <div class="card">
+      <h2>Qzone 完整凭证 <span class="hint">点赞/评论需要 qzone 域完整凭证（NapCat 提供的不足），扫码一次有效约 12 小时</span></h2>
+      <div class="form-row" style="align-items:center">
+        <span id="qzl-status" class="hint">检测中...</span>
+        <button id="qzl-start-btn" class="btn primary">📱 扫码登录</button>
+        <button id="qzl-refresh-btn" class="btn ghost hidden">🔄 刷新二维码</button>
+      </div>
+      <div id="qzl-qr-box" class="bind-qr-box hidden" style="margin-top:10px;text-align:center">
+        <img id="qzl-qr-img" alt="Qzone 登录二维码" style="width:180px;height:180px;background:#fff;padding:6px;border:1px solid #ddd;border-radius:8px">
+        <p class="hint" style="margin:8px 0 0">用手机 QQ 扫描，登录后 Qzone 完整凭证自动保存</p>
+        <p id="qzl-qr-tip" class="hint" style="margin:4px 0 0"></p>
+      </div>
+    </div>
+    <div class="card">
+      <h2>空间监控状态 <span class="hint">每 3 秒自动刷新</span></h2>
+      <div id="qzone-status-box" class="hint">—</div>
+      <div id="qzone-pending-box" style="margin-top:10px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <b>待执行动态</b>
+          <span class="hint" id="qzone-pending-count"></span>
+          <button id="qz-exec-all-btn" class="btn small primary hidden">⚡ 执行全部</button>
+        </div>
+        <table class="table" id="qzone-pending-table">
+          <thead><tr><th>发布者</th><th>内容</th><th>发布时间</th><th>操作</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <table class="table" id="qzone-history-table" style="margin-top:8px">
+        <thead><tr><th>时间</th><th>发布者</th><th>内容</th><th>动作结果</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="section-divider"><span>⚙️ 配置</span></div>
+    <div class="card">
+      <h2>启用与轮询</h2>
+      <div class="form-row">
+        <label class="inline-check"><input type="checkbox" id="qz-enabled"> 启用空间监控</label>
+        <label>轮询间隔（秒，最小 15）
+          <input id="qz-interval" type="number" min="15" value="60" style="width:90px">
+        </label>
+        <label>最大抓取条数
+          <input id="qz-max-posts" type="number" min="10" value="100" style="width:80px" title="每次轮询最多抓取的动态条数">
+        </label>
+      </div>
+      <div class="form-row" style="margin-top:8px">
+        <label class="inline-check"><input type="checkbox" id="qz-manual-mode" checked> 手动确认模式
+          <span class="hint" style="margin-left:4px">开启：匹配的动态进入待执行列表，手动点按钮执行；关闭：匹配后自动执行</span>
+        </label>
+      </div>
+      <div class="form-row" style="margin-top:8px">
+        <label>动作随机间隔（秒，防风控）
+          <input id="qz-delay-min" type="number" min="1" step="0.5" value="2" style="width:70px"> ~
+          <input id="qz-delay-max" type="number" min="1" step="0.5" value="8" style="width:70px">
+        </label>
+      </div>
+    </div>
+    <div class="card">
+      <h2>监控列表 <span class="hint">监控这些 QQ 用户的说说动态（昵称 + QQ 号）</span>
+        <button id="qz-add-monitor-btn" class="btn small">+ 添加监控</button>
+      </h2>
+      <div id="qz-monitor-list"></div>
+    </div>
+    <div class="card">
+      <h2>关键词过滤 <span class="hint">每行一个：<code>关键词</code> 包含即匹配，<code>-排除词</code> 不转发，<code>+必须词</code> 必须包含；留空 = 全部转发</span></h2>
+      <textarea id="qz-keywords" rows="4" placeholder="例如：&#10;抽奖&#10;+转发&#10;-广告"></textarea>
+    </div>
+    <div class="card">
+      <h2>动作 <span class="hint">匹配后自动执行（转发到下方目标 / 原说说点赞 / 评论）</span></h2>
+      <div class="form-row">
+        <label class="inline-check"><input type="checkbox" id="qz-act-forward" checked> 转发</label>
+        <label class="inline-check"><input type="checkbox" id="qz-act-like"> 点赞</label>
+        <label class="inline-check"><input type="checkbox" id="qz-act-comment"> 评论</label>
+        <label>评论模式
+          <select id="qz-comment-mode">
+            <option value="template">模板</option>
+            <option value="ai">AI</option>
+          </select>
+        </label>
+      </div>
+      <div id="qz-template-box">
+        <p class="hint" style="margin:8px 0 4px">评论模板（每行一个，行尾 <code>|权重</code> 控制概率；变量 <code>{nickname}</code> <code>{content}</code> <code>{time}</code>）</p>
+        <textarea id="qz-templates" rows="3" placeholder="说得好！{nickname}|2&#10;写的真不错👍|1"></textarea>
+      </div>
+      <div id="qz-ai-box" class="hidden" style="margin-top:8px">
+        <p class="hint" style="margin:0 0 6px">AI 评论（OpenAI 兼容 API，如 DeepSeek）</p>
+        <div class="form-row">
+          <label style="flex:2">API 地址 <input id="qz-ai-url" type="text" placeholder="https://api.deepseek.com/v1/chat/completions"></label>
+          <label style="flex:1">API Key <input id="qz-ai-key" type="password" placeholder="sk-..."></label>
+          <label style="flex:1">模型 <input id="qz-ai-model" type="text" placeholder="deepseek-chat"></label>
+        </div>
+        <label>系统提示词 <textarea id="qz-ai-prompt" rows="2"></textarea></label>
+      </div>
+    </div>
+    <div class="card">
+      <h2>转发列表 <span class="hint">匹配到的动态转发到这些目标（群或好友）</span>
+        <button id="qz-add-forward-btn" class="btn small">+ 添加目标</button>
+      </h2>
+      <div id="qz-forward-list"></div>
+    </div>
+    <div class="action-bar">
+      <button id="qz-save-btn" class="btn primary">💾 保存配置</button>
+      <button id="qz-test-btn" class="btn ghost">🔌 测试连接</button>
+      <span id="qz-result" class="hint" style="margin-left:6px"></span>
+    </div>
+  </section>
+
+  <!-- Tab 5: 发送记录 -->
+  <section id="tab-history" class="tab-panel">
+    <div class="card">
+      <h2>发送记录 <span class="hint">最近 100 条（服务重启后清空）</span></h2>
+      <table class="table" id="history-table">
+        <thead>
+          <tr><th>时间</th><th>群号</th><th>群名</th><th>结果</th><th>message_id</th><th>发送内容</th><th>错误信息</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Tab 5: 用户管理（仅管理员可见） -->
+  <section id="tab-users" class="tab-panel">
+    <div class="card">
+      <h2>用户列表 <button id="add-user-btn" class="btn small">+ 新建用户</button></h2>
+      <table class="table" id="users-table">
+        <thead>
+          <tr><th>用户名</th><th>角色</th><th>QQ</th><th>状态</th><th>WebUI 端口</th><th>绑定</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>邀请码 <span class="hint">一次性使用；发给目标用户用于邮箱注册</span>
+        <label class="inline-check" style="margin-left:16px">有效天数
+          <input id="inv-days" type="number" min="0" value="0" style="width:70px;padding:4px 8px;border:1px solid #ddd;border-radius:6px" title="0 = 永久">
+        </label>
+        <button id="gen-invite-btn" class="btn small primary">生成邀请码</button>
+      </h2>
+      <table class="table" id="invites-table">
+        <thead>
+          <tr><th>邀请码</th><th>生成时间</th><th>有效期</th><th>状态</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>绑定说明</h2>
+      <p class="hint">「绑定」为该用户创建独立的 NapCat 容器并给出其 WebUI 地址；用该用户自己的 QQ 号扫码登录（须已在目标群）后自动完成反向 WS 连接。容器/登录态互相隔离；WebUI 端口 NapCat 4.x 固定 6099（需安全组放行）。</p>
+    </div>
+  </section>
+
+  <!-- Tab 6: 日志 -->
+  <section id="tab-logs" class="tab-panel">
+    <div class="card">
+      <h2>服务器日志
+        <select id="log-file-select" class="inline-select"></select>
+        <label class="inline-check"><input type="checkbox" id="log-follow" checked> 跟随滚动</label>
+        <button id="log-clear-btn" class="btn small ghost">清屏</button>
+      </h2>
+      <pre id="log-output" class="log-output"></pre>
+    </div>
+  </section>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<!-- 群编辑弹层 -->
+<div id="group-modal" class="modal hidden">
+  <div class="modal-card">
+    <h2 id="group-modal-title">新增群</h2>
+    <label>群号 <input id="gm-gid" type="text" placeholder="必填"></label>
+    <label>群名（QQ 里显示的名称，用于定位窗口） <input id="gm-name" type="text" placeholder="必填"></label>
+    <label>消息阈值（留空 = 跟随全局） <input id="gm-threshold" type="number" min="1"></label>
+    <label>发送间隔分钟（留空 = 跟随全局） <input id="gm-interval" type="number" min="1"></label>
+    <label>模板覆盖（留空 = 用全局模板） <textarea id="gm-template" rows="2"></textarea></label>
+    <label>指定图片（留空 = 用默认图片） <select id="gm-image"><option value="">（默认）</option></select></label>
+    <label>所属分类 <select id="gm-category"><option value="">（无分类）</option></select></label>
+    <label class="inline-check"><input type="checkbox" id="gm-enabled" checked> 启用本群发送（关闭后该群不再监听计数，也不会发送）</label>
+    <div class="modal-actions">
+      <button id="gm-cancel" class="btn ghost">取消</button>
+      <button id="gm-save" class="btn primary">保存</button>
+    </div>
+    <div id="gm-error" class="error-text"></div>
+  </div>
+</div>
+
+<!-- 分类编辑弹层 -->
+<div id="category-modal" class="modal hidden">
+  <div class="modal-card">
+    <h2 id="category-modal-title">新增分类</h2>
+    <label>分类名称 <input id="cm-name" type="text" placeholder="如「成都漫展」" required></label>
+    <label>默认消息阈值（条，留空 = 不覆盖） <input id="cm-threshold" type="number" min="1" placeholder="留空则不覆盖群设置"></label>
+    <label>默认发送间隔（分钟，留空 = 不覆盖） <input id="cm-interval" type="number" min="1" placeholder="留空则不覆盖群设置"></label>
+    <label class="inline-check"><input type="checkbox" id="cm-enabled" checked> 启用分类（开启后可用开关一键同步该分类下群的发送状态）</label>
+    <div class="modal-actions">
+      <button id="cm-cancel" class="btn ghost">取消</button>
+      <button id="cm-save" class="btn primary">保存</button>
+    </div>
+    <div id="cm-error" class="error-text"></div>
+  </div>
+</div>
+
+<!-- 注册弹层 -->
+<div id="register-modal" class="modal hidden">
+  <div class="modal-card">
+    <h2>注册账号</h2>
+    <p class="hint" style="margin-left:0">需要有效的邀请码（向管理员索取）；填写邮箱获取验证码即可完成注册</p>
+    <label>邮箱 <input id="rg-email" type="email" placeholder="you@example.com"></label>
+    <div class="code-row">
+      <label style="flex:1">验证码 <input id="rg-code" type="text" placeholder="6 位数字" maxlength="6"></label>
+      <button id="rg-send-code" class="btn ghost">发送验证码</button>
+    </div>
+    <label>密码（至少 6 位） <input id="rg-password" type="password" placeholder="至少 6 位"></label>
+    <label>确认密码 <input id="rg-password2" type="password" placeholder="再次输入密码"></label>
+    <label>邀请码 <input id="rg-invite" type="text" placeholder="管理员提供的邀请码"></label>
+    <div class="modal-actions">
+      <button id="rg-cancel" class="btn ghost">取消</button>
+      <button id="rg-submit" class="btn primary">注册</button>
+    </div>
+    <div id="rg-error" class="error-text"></div>
+  </div>
+</div>
+
+<!-- 新建用户弹层（管理员） -->
+<div id="user-modal" class="modal hidden">
+  <div class="modal-card">
+    <h2>新建用户</h2>
+    <label>用户名（2-32 位字母/数字/_/-） <input id="um-username" type="text" placeholder="如 zhangsan"></label>
+    <label>初始密码（至少 6 位） <input id="um-password" type="password" placeholder="至少 6 位"></label>
+    <label>角色
+      <select id="um-role">
+        <option value="user">普通用户（只能管理自己）</option>
+        <option value="admin">管理员</option>
+      </select>
+    </label>
+    <div class="modal-actions">
+      <button id="um-cancel" class="btn ghost">取消</button>
+      <button id="um-save" class="btn primary">创建</button>
+    </div>
+    <div id="um-error" class="error-text"></div>
+  </div>
+</div>
+
+<!-- 绑定弹窗（管理员） -->
+<div id="bind-modal" class="modal hidden">
+  <div class="modal-card">
+    <h2>绑定账号 · <span id="bind-username"></span></h2>
+    <p class="hint">用该账号的 QQ 手机扫码（须已在目标群）：</p>
+    <div id="bind-modal-qr" class="bind-qr-box hidden">
+      <img id="bind-modal-qr-img" alt="登录二维码">
+      <p class="hint" style="margin-left:0">每 30 秒自动刷新，可点按钮立即换新码</p>
+      <p><button id="bind-modal-qr-refresh" class="btn small ghost">🔄 刷新二维码</button></p>
+      <p id="bind-modal-qr-tip" class="hint" style="margin-left:0"></p>
+    </div>
+    <div class="bind-url-box hidden" id="bind-modal-url"><a id="bind-url" href="#" target="_blank" rel="noopener"></a></div>
+    <p id="bind-status" class="bind-status">正在创建容器…</p>
+    <div class="modal-actions">
+      <button id="bind-close" class="btn ghost">关闭</button>
+    </div>
+    <div id="bind-error" class="error-text"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

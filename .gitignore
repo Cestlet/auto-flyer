@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 运行时生成
+server/state.json
+server/status.json
+server/pending_trigger.json
+server/images/
+server/logs/
+client/logs/
+
+# 多用户数据（含密码哈希、QQ 登录态，不入库）
+server/users/
+server/users.json
+!server/users.json.example
+server/invites.json
+server/napcat-*/
+server/napcat/
+
+# 系统配置（含 SMTP 授权码），模板见 config.json.example
+server/config.json
+!server/config.json.example
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+
+# Local credentials, dependencies and generated files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*.log
+*.bak
+*.pyc
+__pycache__/
+node_modules/
+.venv/
+.idea/
+.gradle/
+.kotlin/
+local.properties
+
+/server/test_refresh.py
+/server/test_refresh2.py
+/server/sync_keys.py
+
+# Private runtime state and diagnostic captures
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+*.dump
+*.sql
+*.pfx
+*.p12
+*.jks
+*.keystore
+*.bundle
+*.zip
+*.tar.gz
+.ssh/
+.secrets/
+secrets/
+.playwright-cli/
+browser-profile/
